@@ -2,6 +2,7 @@
 import os, sys, json, threading, time, platform
 from pathlib import Path
 from datetime import datetime
+from typing import Optional, Callable, Any
 import tkinter as tk
 from tkinter import ttk
 
@@ -32,7 +33,7 @@ class DaemonClient:
             return {"error": "connection failed"}
 
 class App:
-    def __init__(self):
+    def __init__(self) -> None:
         self.client = DaemonClient()
         self.root = tk.Tk()
         self.root.title("Portfolio Manager")
@@ -50,7 +51,7 @@ class App:
         self._build_ui()
         self._poll_status()
 
-    def _build_ui(self):
+    def _build_ui(self) -> None:
         # ── Splash header ──
         self.splash = tk.Frame(self.root, bg="#12121e", height=80)
         self.splash.pack(fill=tk.X)
@@ -217,14 +218,14 @@ class App:
         tk.Label(status, textvariable=self.version_var, font=("Segoe UI", 8),
                  fg="#555", bg="#12121e").pack(side=tk.RIGHT, padx=12)
 
-    def _splash_sequence(self):
+    def _splash_sequence(self) -> None:
         messages = [
             ("Portfolio Daemon", "v1.0 · inicjalizacja..."),
             ("Portfolio Daemon", "ładowanie backendów..."),
             ("Portfolio Daemon", "uruchamianie tunelu..."),
             ("⚡ Portfolio Daemon", "gotowy!"),
         ]
-        def animate(i=0):
+        def animate(i: int = 0) -> None:
             if i < len(messages):
                 self.splash_text.config(text=messages[i][0])
                 self.splash_sub.config(text=messages[i][1])
@@ -233,11 +234,11 @@ class App:
                 self.root.after(300, self._fade_splash)
         animate()
 
-    def _fade_splash(self):
+    def _fade_splash(self) -> None:
         self.splash.destroy()
         self.root.configure(bg="#0a0a0f")
 
-    def _pulse_tunnel_dot(self, color="#f59e0b", count=0):
+    def _pulse_tunnel_dot(self, color: str = "#f59e0b", count: int = 0) -> None:
         if count > 6:
             self.tunnel_status_dot.itemconfig(self.tunnel_dot_id, fill="#22c55e")
             return
@@ -246,8 +247,8 @@ class App:
         self.root.after(300, lambda: self._pulse_tunnel_dot(color, count + 1))
 
     # ── API calls ──
-    def _call_api(self, path: str, method: str = "get", callback=None):
-        def go():
+    def _call_api(self, path: str, method: str = "get", callback: Optional[Callable] = None) -> None:
+        def go() -> None:
             try:
                 if method == "post":
                     result = self.client.post(path)
@@ -259,12 +260,12 @@ class App:
                 self.root.after(0, lambda: self._set_status(f"Błąd: {e}"))
         threading.Thread(target=go, daemon=True).start()
 
-    def _select_backend(self, key: str):
+    def _select_backend(self, key: str) -> None:
         self.selected = key
         self._refresh_logs(key)
         self._refresh_project_info(key)
 
-    def _refresh_project_info(self, key: str):
+    def _refresh_project_info(self, key: str) -> None:
         for bp in self.status_data.get("backends", []):
             if bp["key"] == key:
                 note = f" · {bp['note']}" if bp.get("note") else ""
@@ -276,8 +277,8 @@ class App:
                 return
         self.project_info.config(text="")
 
-    def _refresh_logs(self, key: str):
-        def update(result):
+    def _refresh_logs(self, key: str) -> None:
+        def update(result: dict) -> None:
             if "logs" in result:
                 self.log_text.config(state=tk.NORMAL)
                 self.log_text.delete("1.0", tk.END)
@@ -288,7 +289,7 @@ class App:
                 self.project_title.config(text=result.get("name", key))
         self._call_api(f"/logs/{key}", callback=update)
 
-    def _start_backend(self, key: str):
+    def _start_backend(self, key: str) -> None:
         if key in self.sidebar_buttons:
             self.sidebar_buttons[key]["dot"].itemconfig(1, fill="#f59e0b")
             self.sidebar_buttons[key]["label"].config(fg="#f59e0b")
@@ -296,49 +297,49 @@ class App:
         self._call_api(f"/start/{key}", "post", callback=lambda r: self._set_status(
             f"{key}: {r.get('status', 'ok')}" if "error" not in r else f"Błąd: {r['error']}"))
 
-    def _stop_backend(self, key: str):
+    def _stop_backend(self, key: str) -> None:
         if key in self.sidebar_buttons:
             self.sidebar_buttons[key]["dot"].itemconfig(1, fill="#ef4444")
         self._set_status(f"Zatrzymuję {key}...")
         self._call_api(f"/stop/{key}", "post", callback=lambda r: self._set_status(
             f"{key}: zatrzymany" if "error" not in r else f"Błąd: {r['error']}"))
 
-    def _restart_backend(self, key: str):
+    def _restart_backend(self, key: str) -> None:
         if key in self.sidebar_buttons:
             self.sidebar_buttons[key]["dot"].itemconfig(1, fill="#f59e0b")
         self._set_status(f"Restartuję {key}...")
         self._call_api(f"/restart/{key}", "post", callback=lambda r: self._set_status(
             f"{key}: restart" if "error" not in r else f"Błąd: {r['error']}"))
 
-    def _start_all(self):
+    def _start_all(self) -> None:
         for btn in self.sidebar_buttons.values():
             btn["dot"].itemconfig(1, fill="#f59e0b")
         self._set_status("Uruchamianie wszystkich backendów...")
         self._call_api("/start-all", "post", callback=lambda r: self._set_status("Backendy uruchomione"))
 
-    def _stop_all(self):
+    def _stop_all(self) -> None:
         for btn in self.sidebar_buttons.values():
             btn["dot"].itemconfig(1, fill="#ef4444")
         self._set_status("Zatrzymywanie wszystkich backendów...")
         self._call_api("/stop-all", "post", callback=lambda r: self._set_status("Backendy zatrzymane"))
 
-    def _restart_all(self):
+    def _restart_all(self) -> None:
         for btn in self.sidebar_buttons.values():
             btn["dot"].itemconfig(1, fill="#f59e0b")
         self._set_status("Restartowanie wszystkich backendów...")
         self._call_api("/restart-all", "post", callback=lambda r: self._set_status("Backendy zrestartowane"))
 
-    def _update_all(self):
+    def _update_all(self) -> None:
         for btn in self.sidebar_buttons.values():
             btn["dot"].itemconfig(1, fill="#f59e0b")
         self._set_status("Aktualizacja wszystkich backendów...")
         self._call_api("/update-all", "post", callback=lambda r: self._set_status("Backendy zaktualizowane"))
 
-    def _set_status(self, msg: str):
+    def _set_status(self, msg: str) -> None:
         self.status_var.set(msg)
 
     # ── Polling ──
-    def _poll_status(self):
+    def _poll_status(self) -> None:
         def update(result):
             if "error" not in result:
                 self.status_data = result
@@ -412,7 +413,7 @@ class App:
         self._call_api("/status", callback=update)
         self.root.after(5000, self._poll_status)
 
-    def run(self):
+    def run(self) -> None:
         self.root.mainloop()
 
 if __name__ == "__main__":

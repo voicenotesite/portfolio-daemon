@@ -24,7 +24,7 @@ CONFIG_PATH = Path(__file__).parent.parent / "config.json"
 # ─── Backend Manager ─────────────────────────────────────────────────────────
 
 class BackendProcess:
-    def __init__(self, key: str, cfg: dict):
+    def __init__(self, key: str, cfg: dict) -> None:
         self.key = key
         self.name = cfg["name"]
         self.path = Path(cfg["path"])
@@ -182,7 +182,7 @@ class BackendProcess:
         self.log(f"git pull failed: {r.stderr.strip()[-80:]}")
         return False
 
-    def _read_output(self):
+    def _read_output(self) -> None:
         try:
             for line in iter(self.process.stdout.readline, ""):
                 line = line.rstrip()
@@ -190,7 +190,7 @@ class BackendProcess:
         except Exception:
             pass
 
-    def log(self, msg: str):
+    def log(self, msg: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S")
         self.log_buffer.append(f"[daemon] {msg}")
         logging.info(f"[{self.key}] {msg}")
@@ -247,7 +247,7 @@ class BackendProcess:
 CLOUDFLARED = str(Path.home() / ".local" / "bin" / "cloudflared")
 
 class TunnelManager:
-    def __init__(self, target_host: str, target_port: int, on_url=None):
+    def __init__(self, target_host: str, target_port: int, on_url=None) -> None:
         self.target_host = target_host
         self.target_port = target_port
         self.process: Optional[subprocess.Popen] = None
@@ -280,7 +280,7 @@ class TunnelManager:
             log.error(f"tunnel start failed: {e}")
             return False
 
-    def stop(self):
+    def stop(self) -> None:
         if self.is_running():
             pid = self.process.pid
             os.killpg(os.getpgid(pid), signal.SIGTERM) if not IS_WINDOWS else self.process.terminate()
@@ -289,7 +289,7 @@ class TunnelManager:
         self.url = None
         log.info("tunnel stopped")
 
-    def _read_output(self):
+    def _read_output(self) -> None:
         import re
         try:
             for line in iter(self.process.stdout.readline, ""):
@@ -307,7 +307,7 @@ class TunnelManager:
 # ─── Daemon API ──────────────────────────────────────────────────────────────
 
 class DaemonAPI:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict) -> None:
         self.config = config
         self.backends: Dict[str, BackendProcess] = {}
         self.start_time = time.time()
@@ -323,11 +323,11 @@ class DaemonAPI:
         self._start_git_loop()
         self._lock = threading.Lock()
 
-    def _init_backends(self):
+    def _init_backends(self) -> None:
         for key, cfg in self.config["backends"].items():
             self.backends[key] = BackendProcess(key, cfg)
 
-    def _health_loop(self):
+    def _health_loop(self) -> None:
         while True:
             time.sleep(self.config.get("health_interval", 30))
             for key, bp in self.backends.items():
@@ -336,7 +336,7 @@ class DaemonAPI:
                 except Exception as e:
                     log.error(f"health check {key}: {e}")
 
-    def _git_loop(self):
+    def _git_loop(self) -> None:
         while True:
             time.sleep(self.config.get("git_check_interval", 60))
             for key, bp in self.backends.items():
@@ -350,11 +350,11 @@ class DaemonAPI:
                     except Exception as e:
                         log.error(f"git check {key}: {e}")
 
-    def _start_health_loop(self):
+    def _start_health_loop(self) -> None:
         t = threading.Thread(target=self._health_loop, daemon=True)
         t.start()
 
-    def _start_git_loop(self):
+    def _start_git_loop(self) -> None:
         t = threading.Thread(target=self._git_loop, daemon=True)
         t.start()
 
@@ -423,13 +423,13 @@ class DaemonAPI:
                 results[key] = "ok" if ok else "failed"
         return {"results": results}
 
-    def _on_backend_tunnel_url(self, key: str, url: str):
+    def _on_backend_tunnel_url(self, key: str, url: str) -> None:
         log.info(f"backend tunnel [{key}]: {url}")
         # Re-run frontend update with new backend URL
         if self.tunnel.url:
             self.frontend_autoupdate(self.tunnel.url)
 
-    def frontend_autoupdate(self, tunnel_url: str):
+    def frontend_autoupdate(self, tunnel_url: str) -> None:
         self.push_progress["step"] = "frontend_path"
         self.push_progress["progress"] = 0
         self.push_progress["status"] = "Sprawdzanie ścieżki frontendu..."
@@ -631,7 +631,7 @@ def create_app(daemon: DaemonAPI) -> FastAPI:
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
-def main():
+def main() -> None:
     if not CONFIG_PATH.exists():
         log.error(f"config not found: {CONFIG_PATH}")
         sys.exit(1)
